@@ -9,8 +9,8 @@ from sklearn.metrics import classification_report
 
 data = pd.read_csv('KNN_Project_Data.txt')
 
-#sns.pairplot(data, hue='TARGET CLASS')
-#plt.show()
+sns.pairplot(data, hue='TARGET CLASS', palette='magma')
+plt.show()
 
 scaler = StandardScaler()
 scaler.fit(data.drop('TARGET CLASS', axis=1))
