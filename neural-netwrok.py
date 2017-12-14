@@ -1,36 +1,72 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import os
+from six.moves.urllib.request import urlopen
+
 import tensorflow as tf
-import tensorflow.contrib.learn.python.learn as learn
-import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
-
-sess = tf.Session()
-notes = pd.read_csv('bank_note_data.csv')
-print(notes.head())
-
-# Exploratory Data Analysis
-
-sns.pairplot(notes, hue='Class', palette='plasma')
-plt.show()
-
-# feature scaling
-X = notes.drop('Class', axis=1).as_matrix()
-y = notes['Class'].as_matrix()
-
-scaler = StandardScaler()
-X = pd.DataFrame(scaler.fit_transform(X), columns=['Image.Var', 'Image.Skew', 'Image.Curt', 'Entropy'])
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
-
-feature_columns = [tf.contrib.layers.real_valued_column("", dimension=4)]
-model = learn.DNNClassifier(n_classes=2, hidden_units=[10, 20, 10],feature_columns=feature_columns)
-model.fit(X_train, y_train, steps=200, batch_size=20)
-predicts = model.predict(X_test)
 
 
+IRIS_TRAINING = "iris_training.csv"
+IRIS_TRAINING_URL = "http://download.tensorflow.org/data/iris_training.csv"
 
+IRIS_TEST = "iris_test.csv"
+IRIS_TEST_URL = "http://download.tensorflow.org/data/iris_test.csv"
+
+if not os.path.exists(IRIS_TRAINING):
+    raw = urlopen(IRIS_TRAINING_URL).read()
+    with open(IRIS_TRAINING, 'wb') as f:
+        f.write(raw)
+
+if not os.path.exists(IRIS_TEST):
+    raw = urlopen(IRIS_TEST_URL).read()
+    with open(IRIS_TEST, 'wb') as f:
+        f.write(raw)
+
+training_set = tf.contrib.learn.datasets.base.load_csv_with_header(
+    filename=IRIS_TRAINING,
+    target_dtype=np.int,
+    features_dtype=np.float32)
+test_set = tf.contrib.learn.datasets.base.load_csv_with_header(
+    filename=IRIS_TEST,
+    target_dtype=np.int,
+    features_dtype=np.float32)
+
+feature_columns = [tf.feature_column.numeric_column("x", shape=[4])]
+
+classifier = tf.estimator.DNNClassifier(feature_columns=feature_columns,
+                                        hidden_units=[10, 20, 10],
+                                        n_classes=3,
+                                        model_dir="/tmp/iris_model")
+
+train_input_fn = tf.estimator.inputs.numpy_input_fn(
+    x={"x": np.array(training_set.data)},
+    y=np.array(training_set.target),
+    num_epochs=None,
+    shuffle=True)
+
+classifier.train(input_fn=train_input_fn, steps=2000)
+test_input_fn = tf.estimator.inputs.numpy_input_fn(
+    x={"x": np.array(test_set.data)},
+    y=np.array(test_set.target),
+    num_epochs=1,
+    shuffle=False)
+accuracy_score = classifier.evaluate(input_fn=test_input_fn)["accuracy"]
+print("\nTest Accuracy: {0:f}\n".format(accuracy_score))
+
+
+new_samples = np.array(
+    [[6.4, 3.2, 4.5, 1.5]], dtype=np.float32)
+predict_input_fn = tf.estimator.inputs.numpy_input_fn(
+    x={"x": new_samples},
+    num_epochs=1,
+    shuffle=False)
+
+predictions = list(classifier.predict(input_fn=predict_input_fn))
+predicted_classes = [p["classes"] for p in predictions]
+
+res1 = list(str(predicted_classes[0][0]))[2]
+print(res1)
 
